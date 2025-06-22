@@ -1,18 +1,25 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { JwtPayload } from 'src/auth/jwt-payload.interface';
 import { ProfileController } from './profile.controller';
 
 describe('ProfileController', () => {
   let controller: ProfileController;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProfileController],
-    }).compile();
-
-    controller = module.get<ProfileController>(ProfileController);
+  beforeEach(() => {
+    controller = new ProfileController();
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('should return user payload from request', () => {
+    const mockRequest = {
+      user: {
+        sub: 1,
+        email: 'test@exsample.com',
+      },
+    };
+
+    const result = controller.getProfile(mockRequest as { user: JwtPayload });
+    expect(result).toEqual({
+      sub: 1,
+      email: 'test@exsample.com',
+    });
   });
 });

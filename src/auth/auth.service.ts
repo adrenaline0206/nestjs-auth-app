@@ -1,18 +1,23 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcrypt';
 import { User } from 'src/users/user.entity';
+import { SignupDto } from './auth.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private userService: UsersService,
+    private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User> {
-    const user = await this.userService.findByEmail(email);
+    const user = await this.usersService.findByEmail(email);
     if (!user) throw new UnauthorizedException('ユーザーが見つかりません');
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
@@ -29,9 +34,12 @@ export class AuthService {
     };
   }
 
-  async signup(dto: { email: string; password: string; name: string }) {
+  async signup(dto: SignupDto): Promise<{ access_token: string }> {
+    if (await this.usersService.findByEmail(dto.email)) {
+      throw new ConflictException('そのメールアドレスは既に使われています');
+    }
     const hashed = await bcrypt.hash(dto.password, 10);
-    const newUser = await this.userService.create({
+    const newUser = await this.usersService.create({
       ...dto,
       password: hashed,
     });
