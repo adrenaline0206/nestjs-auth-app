@@ -7,6 +7,7 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { User } from 'src/users/user.entity';
 import { SignupDto } from './auth.dto';
+import { DEFAULT_TEST_EMAIL } from 'test/utils';
 
 jest.mock('bcrypt');
 
@@ -121,6 +122,56 @@ describe('AuthService', () => {
         password: dto.password,
         name: dto.name,
       });
+    });
+  });
+
+  describe('changePassword', () => {
+    beforeEach(() => {
+      usersService = {
+        ...usersService,
+        findById: jest.fn(),
+        updatePassword: jest.fn(),
+      };
+    });
+
+    it('should change password successfully', async () => {
+      const oldPassword = 'oldPassword';
+      const newPassword = 'newPassword';
+
+      const mockUser = {
+        id: 1,
+        email: DEFAULT_TEST_EMAIL,
+        password: await bcrypt.hash(oldPassword, 10),
+      };
+
+      (usersService.findById as jest.Mock).mockResolvedValue({
+        ...mockUser,
+        password: await bcrypt.hash(oldPassword, 10),
+      });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedNewPassword');
+      (usersService.updatePassword as jest.Mock).mockResolvedValue(undefined);
+
+      await expect(
+        service.changePassword(mockUser.id, oldPassword, newPassword),
+      ).resolves.toBeUndefined();
+
+      expect(usersService.updatePassword).toHaveBeenCalledWith(
+        mockUser.id,
+        'hashedNewPassword',
+      );
+    });
+
+    it('should throw UnauthorizedException if current password does not match', async () => {
+      const wrongOldPassword = 'wrongPassword';
+      const newPassword = 'newPassword';
+
+      (usersService.findById as jest.Mock).mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.changePassword(mockUser.id, wrongOldPassword, newPassword),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });
